@@ -1,5 +1,4 @@
 from bottle import run, route, request, response, template, Bottle,error
-import json
 from fpdf import FPDF
 from PIL import Image
 import os.path
@@ -18,7 +17,7 @@ def resize_image(input_image_path,
 
 def convert_to_pdf(name):
     pdf = FPDF()
-
+    '''Checking to file existence'''
     if(os.path.exists("images\\" + name)):
 
         resize_image(input_image_path='images\\' + name,
@@ -38,6 +37,7 @@ def convert_to_pdf(name):
 
 @r.error(404)
 def error404(error):
+    """Error if page is not found"""
     return 'Ня, извините, страница не найдена!'
 
 
@@ -59,17 +59,30 @@ def main_loop():
     for item in request.GET:
         PythonDict['GET'][item] = request.GET.get(item)
         if item == "id":
+            '''Getting the json from the api service by ID of manga'''
             r = requests.get("https://api.anibe.ru/posts/" + request.GET.get(item))
             j = r.json()
         elif item == "episode":
+            '''Getting the link on screenshots of the episode of the manga same name of file on the server'''
             episodes = j["episodes"][request.GET.get(item)]
             answer = ""
             for v in episodes:
+                '''Cut the symbols, which not perceive into the name of file'''
                 cuted_link = v.replace(":", "")
                 cuted_link = cuted_link.replace("/", "")
                 if (convert_to_pdf(cuted_link)):
+                    '''If file already exists, then just add the path to result'''
+                    answer += "images\\" + v + ", "
+                else:
+                    '''If file not exists, then download it from the origin'''
+                    r = requests.get(v)
+
+                    with open('images\\' + cuted_link, 'wb') as f:
+                        f.write(r.content)
+                    convert_to_pdf(cuted_link)
                     answer += "images\\" + v + ", "
             if answer:
+                '''Just print files,which had corverted to PDF'''
                 return json.dumps(PythonDict, indent=3) + "\n\n" + answer + "    had converted to PDF"
             else:
                 return json.dumps(PythonDict, indent=3) + "\n"
@@ -81,10 +94,6 @@ def main_loop():
     PythonDict['params'] = {}
     for item in request.params:
         PythonDict['params'][item] = request.params.get(item)
-
-    # todo: Get the name of manga by ID ( request.GET.get(item) - ID of manga )
-
-
 
 
 r.run(host='localhost', port=8080, reloader=True)

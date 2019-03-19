@@ -1,0 +1,6 @@
+bottle
+fpdf
+PIL
+os.path
+requests
+json
